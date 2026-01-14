@@ -11,34 +11,33 @@
 
   <link rel="manifest" href="manifest.webmanifest">
 
-
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Cotizador Corte Láser</title>
   <style>
-    body { font-family: -apple-system, system-ui, Arial; margin: 16px; }
-    h1 { font-size: 20px; margin: 0 0 12px; }
-    .card { border: 1px solid #ddd; border-radius: 12px; padding: 12px; margin-bottom: 12px; }
-    label { display:block; font-size: 12px; opacity:.8; margin-top: 10px; }
-    input, select, textarea { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 10px; font-size: 16px; background:#fff; }
-    textarea { min-height: 60px; resize: vertical; }
-    .row { display:flex; gap:10px; }
+    body { font-family: -apple-system, system-ui, Arial; margin: 14px; }
+    h1 { font-size: 18px; margin: 0 0 10px; }
+    .card { border: 1px solid #ddd; border-radius: 12px; padding: 10px; margin-bottom: 10px; }
+    label { display:block; font-size: 11px; opacity:.8; margin-top: 8px; }
+    input, select, textarea { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 10px; font-size: 14px; background:#fff; }
+    textarea { min-height: 54px; resize: vertical; }
+    .row { display:flex; gap:8px; }
     .row > div { flex:1; }
-    button { width:100%; padding: 12px; font-size: 16px; border:0; border-radius: 12px; cursor:pointer; }
+    button { width:100%; padding: 10px; font-size: 15px; border:0; border-radius: 12px; cursor:pointer; }
     .primary { background:#111; color:#fff; }
     .ghost { background:#f2f2f2; }
     .danger { background:#ffe8e8; }
-    .out { font-size: 16px; line-height: 1.35; }
-    .big { font-size: 22px; font-weight: 700; }
-    .muted { opacity: .75; font-size: 13px; }
+    .out { font-size: 15px; line-height: 1.35; }
+    .big { font-size: 20px; font-weight: 700; }
+    .muted { opacity: .75; font-size: 12px; }
     .hr { height:1px; background:#eee; margin:10px 0; }
-    .ok { font-size: 13px; opacity:.75; margin-top:8px; }
-    .twoBtns { display:flex; gap:10px; margin-top:10px; }
+    .ok { font-size: 12px; opacity:.75; margin-top:8px; }
+    .twoBtns { display:flex; gap:8px; margin-top:10px; }
     .twoBtns button { flex:1; }
-    .historyRow { display:flex; gap:10px; align-items:flex-start; padding:10px; border:1px solid #eee; border-radius:12px; margin-top:10px; }
+    .historyRow { display:flex; gap:8px; align-items:flex-start; padding:10px; border:1px solid #eee; border-radius:12px; margin-top:10px; }
     .historyMain { flex:1; }
     .pill { display:inline-block; font-size:12px; padding:4px 8px; border-radius:999px; background:#f2f2f2; margin-right:6px; margin-top:6px; }
-    .smallBtns { display:flex; flex-direction:column; gap:8px; width:120px; }
+    .smallBtns { display:flex; flex-direction:column; gap:8px; width:110px; }
     .smallBtns button { padding:10px; font-size:14px; }
     .printOnly { display:none; }
 
@@ -74,22 +73,27 @@
         <input id="T" type="number" inputmode="decimal" value="0.0625" step="0.0001" />
       </div>
       <div>
-        <label>Cantidad de piezas</label>
+        <label>Cantidad</label>
         <input id="qty" type="number" inputmode="numeric" value="1" min="1" step="1" />
       </div>
     </div>
 
+    <!-- ✅ Tiempo en minutos + segundos -->
     <div class="row">
       <div>
         <label>Modo de tiempo</label>
         <select id="timeMode" onchange="calc()">
-          <option value="per_piece" selected>Tiempo por pieza</option>
-          <option value="total_job">Tiempo total del lote</option>
+          <option value="per_piece" selected>Por pieza</option>
+          <option value="total_job">Total lote</option>
         </select>
       </div>
       <div>
-        <label>Tiempo de corte (min)</label>
+        <label>Tiempo (min)</label>
         <input id="cutMin" type="number" inputmode="decimal" value="15" step="0.1" />
+      </div>
+      <div>
+        <label>Tiempo (seg)</label>
+        <input id="cutSec" type="number" inputmode="numeric" value="0" min="0" step="1" />
       </div>
     </div>
 
@@ -108,7 +112,7 @@
 
     <div class="row">
       <div>
-        <label>Factor común (0.13)</label>
+        <label>Factor (0.13)</label>
         <input id="factor" type="number" inputmode="decimal" value="0.13" step="0.001" />
       </div>
       <div>
@@ -123,23 +127,23 @@
         <input id="usdHr" type="number" inputmode="decimal" value="85" step="1" />
       </div>
       <div>
-        <label>Setup fijo (opcional, por lote)</label>
+        <label>Setup (por lote)</label>
         <input id="setup" type="number" inputmode="decimal" value="0" step="1" />
       </div>
     </div>
 
     <div class="row">
       <div>
-        <label>Merma material % (opcional)</label>
+        <label>Merma %</label>
         <input id="wastePct" type="number" inputmode="decimal" value="0" step="1" />
       </div>
       <div>
-        <label>Margen % (opcional)</label>
+        <label>Margen % (ganancia)</label>
         <input id="marginPct" type="number" inputmode="decimal" value="0" step="1" />
       </div>
     </div>
 
-    <label>Notas para el cliente (opcional)</label>
+    <label>Notas (opcional)</label>
     <textarea id="notes" placeholder="Ej: Incluye desbarbado / entrega / material proporcionado por cliente, etc."></textarea>
 
     <div class="twoBtns">
@@ -158,19 +162,19 @@
     <div class="out" id="out">Ingresa datos y presiona <b>Calcular</b>.</div>
 
     <div class="twoBtns noPrint">
-      <button class="primary" onclick="copyWhatsApp()">📲 Copiar para WhatsApp</button>
+      <button class="primary" onclick="copyWhatsApp()">📲 Copiar WhatsApp</button>
       <button class="ghost" onclick="shareWhatsApp()">💬 Abrir WhatsApp</button>
     </div>
 
     <div class="twoBtns noPrint">
-      <button class="primary" onclick="saveToHistory()">💾 Guardar en historial</button>
-      <button class="ghost" onclick="printPDF()">🧾 Guardar/Imprimir PDF</button>
+      <button class="primary" onclick="saveToHistory()">💾 Guardar historial</button>
+      <button class="ghost" onclick="printPDF()">🧾 PDF</button>
     </div>
 
     <div class="ok noPrint" id="copyStatus"></div>
 
     <div class="muted noPrint" style="margin-top:10px">
-      Setup es por lote. Merma afecta material. Margen aplica al total.
+      Setup por lote. Merma afecta material. Margen aplica al total.
     </div>
   </div>
 
@@ -180,7 +184,7 @@
         <div style="font-weight:700;">📚 Historial</div>
         <div class="muted">Se guarda en tu celular (localStorage). Puedes cargar una cotización vieja y volver a editar.</div>
       </div>
-      <button class="danger" style="max-width:180px;" onclick="clearHistory()">Borrar historial</button>
+      <button class="danger" style="max-width:180px;" onclick="clearHistory()">Borrar</button>
     </div>
 
     <div id="history"></div>
@@ -222,27 +226,25 @@
   }
 
   function nowStamp(){
-    const d = new Date();
-    return d.toISOString();
+    return new Date().toISOString();
   }
 
   function niceDate(iso){
     try{
-      const d = new Date(iso);
-      return d.toLocaleString();
+      return new Date(iso).toLocaleString();
     } catch { return iso; }
   }
 
   function initLists(){
     const g = document.getElementById("gaugeSelect");
-    g.innerHTML = `<option value="">(elige calibre)</option>`;
+    g.innerHTML = `<option value="">(calibre)</option>`;
     Object.keys(STEEL_GAUGE_IN).map(Number).sort((a,b)=>a-b).forEach(ga=>{
       const t = STEEL_GAUGE_IN[ga];
       g.innerHTML += `<option value="${ga}">${ga} ga → ${t.toFixed(4)}"</option>`;
     });
 
     const f = document.getElementById("fracSelect");
-    f.innerHTML = `<option value="">(elige espesor)</option>`;
+    f.innerHTML = `<option value="">(espesor)</option>`;
     FRACTIONS.forEach(fr=>{
       f.innerHTML += `<option value="${fr.val}">${fr.label} → ${fr.val}</option>`;
     });
@@ -278,7 +280,14 @@
     document.getElementById("qty").value = qty;
 
     const timeMode = document.getElementById("timeMode").value;
+
+    // ✅ Min + Seg
     const cutMinInput = parseFloat(document.getElementById("cutMin").value || 0);
+    const cutSecInputRaw = parseFloat(document.getElementById("cutSec").value || 0);
+    const cutSecInput = Math.max(0, Math.floor(isFinite(cutSecInputRaw) ? cutSecInputRaw : 0));
+    document.getElementById("cutSec").value = cutSecInput;
+
+    const cutTotalMinInput = cutMinInput + (cutSecInput / 60.0);
 
     const factor = parseFloat(document.getElementById("factor").value || 0);
     const usdKg = parseFloat(document.getElementById("usdKg").value || 0);
@@ -306,8 +315,8 @@
     // Material total
     const material_total = material_piece * qty;
 
-    // Tiempo total
-    const cutMin_total = (timeMode === "per_piece") ? (cutMinInput * qty) : cutMinInput;
+    // ✅ Tiempo total (en minutos)
+    const cutMin_total = (timeMode === "per_piece") ? (cutTotalMinInput * qty) : cutTotalMinInput;
 
     // Láser total
     const laser_total = (cutMin_total / 60.0) * usdHr;
@@ -315,23 +324,24 @@
     // Setup por lote
     const base_total = material_total + laser_total + setup;
 
-    // Total con margen
+    // Total con margen (ganancia)
     const total = base_total * (1 + marginPct);
 
-    // Precio por pieza (simple: total/qty)
+    // Precio por pieza
     const per_piece = total / qty;
 
     LAST = {
       ts: nowStamp(),
-      inputs: { L, W, T, qty, timeMode, cutMinInput, factor, usdKg, usdHr, setup, wastePct, marginPct, notes },
+      inputs: { L, W, T, qty, timeMode, cutMinInput, cutSecInput, factor, usdKg, usdHr, setup, wastePct, marginPct, notes },
       calc: { volumeCm3_piece, weightKg_piece, material_piece, material_total, cutMin_total, laser_total, base_total, total, per_piece }
     };
 
-    // Pintar fecha para impresión
+    // Fecha impresión
     document.getElementById("printDate").textContent = "Fecha: " + new Date().toLocaleString();
 
-    // Render
-    const tm = (timeMode === "per_piece") ? `Tiempo por pieza: ${cutMinInput} min` : `Tiempo total del lote: ${cutMinInput} min`;
+    const tm = (timeMode === "per_piece")
+      ? `Tiempo por pieza: ${cutMinInput} min ${cutSecInput} seg`
+      : `Tiempo total del lote: ${cutMinInput} min ${cutSecInput} seg`;
 
     document.getElementById("out").innerHTML = `
       <div class="big">Total: ${money(total)} <span class="muted">( ${money(per_piece)} c/u )</span></div>
@@ -375,8 +385,8 @@
     const I = LAST.inputs, C = LAST.calc;
 
     const tm = (I.timeMode === "per_piece")
-      ? `Tiempo por pieza: ${I.cutMinInput} min`
-      : `Tiempo total del lote: ${I.cutMinInput} min`;
+      ? `Tiempo por pieza: ${I.cutMinInput} min ${I.cutSecInput} seg`
+      : `Tiempo total del lote: ${I.cutMinInput} min ${I.cutSecInput} seg`;
 
     return [
       "📌 *Cotización Corte Láser (Acero)*",
@@ -423,7 +433,6 @@
 
   function printPDF(){
     calc();
-    // El usuario en iPhone/Android elige "Guardar como PDF" o "Print"
     window.print();
   }
 
@@ -477,7 +486,9 @@
     document.getElementById("T").value = I.T;
     document.getElementById("qty").value = I.qty;
     document.getElementById("timeMode").value = I.timeMode;
+
     document.getElementById("cutMin").value = I.cutMinInput;
+    document.getElementById("cutSec").value = I.cutSecInput ?? 0;
 
     document.getElementById("factor").value = I.factor;
     document.getElementById("usdKg").value = I.usdKg;
@@ -487,7 +498,6 @@
     document.getElementById("marginPct").value = (I.marginPct * 100).toFixed(0);
     document.getElementById("notes").value = I.notes || "";
 
-    // limpia selectores (porque puede no coincidir)
     document.getElementById("gaugeSelect").value = "";
     document.getElementById("fracSelect").value = "";
 
@@ -509,8 +519,8 @@
       const I = item.inputs, C = item.calc;
       const title = `${I.qty} pzs | ${I.L}×${I.W}×${I.T} in`;
       const sub = (I.timeMode === "per_piece")
-        ? `${I.cutMinInput} min/pza → ${C.cutMin_total.toFixed(1)} min total`
-        : `${I.cutMinInput} min total`;
+        ? `${I.cutMinInput}m ${I.cutSecInput}s/pza → ${C.cutMin_total.toFixed(1)} min total`
+        : `${I.cutMinInput}m ${I.cutSecInput}s total`;
 
       return `
         <div class="historyRow">
@@ -543,7 +553,6 @@
     const item = hist.find(x => x?.ts === ts);
     if (!item) return;
 
-    // Temporariamente setear LAST para reutilizar whatsappText()
     const prev = LAST;
     LAST = item;
 
@@ -571,6 +580,7 @@
     document.getElementById("qty").value = 1;
     document.getElementById("timeMode").value = "per_piece";
     document.getElementById("cutMin").value = 15;
+    document.getElementById("cutSec").value = 0;
     document.getElementById("gaugeSelect").value = "";
     document.getElementById("fracSelect").value = "";
     document.getElementById("factor").value = 0.13;
