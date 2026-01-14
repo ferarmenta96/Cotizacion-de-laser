@@ -41,7 +41,13 @@
     .smallBtns button { padding:10px; font-size:14px; }
     .printOnly { display:none; }
 
-    /* Modo impresión / PDF */
+    /* 🔒 Estilo de campo bloqueado */
+    input[readonly].locked {
+      background: #f6f6f6;
+      color: #444;
+      border-color: #e0e0e0;
+    }
+
     @media print {
       body { margin: 0; }
       .noPrint { display:none !important; }
@@ -78,7 +84,6 @@
       </div>
     </div>
 
-    <!-- ✅ Tiempo en minutos + segundos -->
     <div class="row">
       <div>
         <label>Modo de tiempo</label>
@@ -112,8 +117,9 @@
 
     <div class="row">
       <div>
-        <label>Factor (0.13)</label>
-        <input id="factor" type="number" inputmode="decimal" value="0.13" step="0.001" />
+        <label>Factor fijo (in³ → kg)</label>
+        <!-- 🔒 BLOQUEADO -->
+        <input id="factorDisplay" class="locked" type="text" value="0.13 (in³ → kg)" readonly />
       </div>
       <div>
         <label>USD/kg (1.7)</label>
@@ -191,10 +197,11 @@
   </div>
 
 <script>
-  const IN_TO_CM = 2.54;
   const HISTORY_KEY = "laser_quote_history_v1";
 
-  // Sheet Steel (Manufacturers’ Standard Gauge), inches: 6–20
+  // 🔒 FACTOR OFICIAL FIJO (in³ → kg)
+  const FACTOR_IN3_TO_KG = 0.13;
+
   const STEEL_GAUGE_IN = {
     6: 0.1943, 7: 0.1793, 8: 0.1644, 9: 0.1495,
     10: 0.1345, 11: 0.1196, 12: 0.1046, 13: 0.0897,
@@ -202,7 +209,6 @@
     18: 0.0478, 19: 0.0418, 20: 0.0359
   };
 
-  // Fracciones 1" a 1/16"
   const FRACTIONS = [
     { label: '1"', val: 1.0 },
     { label: '3/4"', val: 0.75 },
@@ -225,14 +231,10 @@
     return Math.floor(q);
   }
 
-  function nowStamp(){
-    return new Date().toISOString();
-  }
+  function nowStamp(){ return new Date().toISOString(); }
 
   function niceDate(iso){
-    try{
-      return new Date(iso).toLocaleString();
-    } catch { return iso; }
+    try{ return new Date(iso).toLocaleString(); } catch { return iso; }
   }
 
   function initLists(){
@@ -248,6 +250,9 @@
     FRACTIONS.forEach(fr=>{
       f.innerHTML += `<option value="${fr.val}">${fr.label} → ${fr.val}</option>`;
     });
+
+    // Mostrar el factor fijo en pantalla (por si cambias la constante en el futuro)
+    document.getElementById("factorDisplay").value = `${FACTOR_IN3_TO_KG} (in³ → kg)`;
   }
 
   function applyGauge(){
@@ -268,7 +273,6 @@
     }
   }
 
-  // Último cálculo
   let LAST = null;
 
   function calc(){
@@ -281,7 +285,6 @@
 
     const timeMode = document.getElementById("timeMode").value;
 
-    // ✅ Min + Seg
     const cutMinInput = parseFloat(document.getElementById("cutMin").value || 0);
     const cutSecInputRaw = parseFloat(document.getElementById("cutSec").value || 0);
     const cutSecInput = Math.max(0, Math.floor(isFinite(cutSecInputRaw) ? cutSecInputRaw : 0));
@@ -289,7 +292,6 @@
 
     const cutTotalMinInput = cutMinInput + (cutSecInput / 60.0);
 
-    const factor = parseFloat(document.getElementById("factor").value || 0);
     const usdKg = parseFloat(document.getElementById("usdKg").value || 0);
     const usdHr = parseFloat(document.getElementById("usdHr").value || 0);
 
@@ -299,44 +301,30 @@
 
     const notes = (document.getElementById("notes").value || "").trim();
 
-    // Dimensiones a cm
-    const Lcm = L * IN_TO_CM, Wcm = W * IN_TO_CM, Tcm = T * IN_TO_CM;
+    // ✅ Volumen en pulgadas cúbicas (in³), sin conversión
+    const volumeIn3_piece = L * W * T;
 
-    // Volumen por pieza (cm^3)
-    const volumeCm3_piece = Lcm * Wcm * Tcm;
+    // ✅ Peso en kg usando factor fijo oficial
+    const weightKg_piece = volumeIn3_piece * FACTOR_IN3_TO_KG;
 
-    // Peso por pieza (tu método)
-    const weightKg_piece = volumeCm3_piece * factor;
-
-    // Material por pieza
     let material_piece = weightKg_piece * usdKg;
     material_piece *= (1 + wastePct);
 
-    // Material total
     const material_total = material_piece * qty;
 
-    // ✅ Tiempo total (en minutos)
     const cutMin_total = (timeMode === "per_piece") ? (cutTotalMinInput * qty) : cutTotalMinInput;
-
-    // Láser total
     const laser_total = (cutMin_total / 60.0) * usdHr;
 
-    // Setup por lote
     const base_total = material_total + laser_total + setup;
-
-    // Total con margen (ganancia)
     const total = base_total * (1 + marginPct);
-
-    // Precio por pieza
     const per_piece = total / qty;
 
     LAST = {
       ts: nowStamp(),
-      inputs: { L, W, T, qty, timeMode, cutMinInput, cutSecInput, factor, usdKg, usdHr, setup, wastePct, marginPct, notes },
-      calc: { volumeCm3_piece, weightKg_piece, material_piece, material_total, cutMin_total, laser_total, base_total, total, per_piece }
+      inputs: { L, W, T, qty, timeMode, cutMinInput, cutSecInput, usdKg, usdHr, setup, wastePct, marginPct, notes },
+      calc: { volumeIn3_piece, weightKg_piece, material_piece, material_total, cutMin_total, laser_total, base_total, total, per_piece }
     };
 
-    // Fecha impresión
     document.getElementById("printDate").textContent = "Fecha: " + new Date().toLocaleString();
 
     const tm = (timeMode === "per_piece")
@@ -354,8 +342,8 @@
 
       <div class="hr"></div>
 
-      <div><b>Volumen (por pieza):</b> ${volumeCm3_piece.toFixed(2)} cm³</div>
-      <div><b>Peso (por pieza, factor ${factor}):</b> ${weightKg_piece.toFixed(3)} kg</div>
+      <div><b>Volumen (por pieza):</b> ${volumeIn3_piece.toFixed(4)} in³</div>
+      <div><b>Peso (por pieza, factor fijo ${FACTOR_IN3_TO_KG}):</b> ${weightKg_piece.toFixed(3)} kg</div>
 
       <div class="hr"></div>
 
@@ -403,7 +391,8 @@
       `• Láser: ${money(C.laser_total)} (${C.cutMin_total.toFixed(2)} min total a ${money(I.usdHr)}/h)`,
       `• Setup: ${money(I.setup)}`,
       "",
-      `Factor: ${I.factor} | USD/kg: ${I.usdKg} | Merma: ${(I.wastePct*100).toFixed(0)}% | Margen: ${(I.marginPct*100).toFixed(0)}%`,
+      `Volumen/pza: ${C.volumeIn3_piece.toFixed(4)} in³ | Peso/pza: ${C.weightKg_piece.toFixed(3)} kg`,
+      `Factor fijo: ${FACTOR_IN3_TO_KG} (in³→kg) | USD/kg: ${I.usdKg} | Merma: ${(I.wastePct*100).toFixed(0)}% | Margen: ${(I.marginPct*100).toFixed(0)}%`,
       I.notes ? `Notas: ${I.notes}` : ""
     ].filter(Boolean).join("\n");
   }
@@ -436,7 +425,6 @@
     window.print();
   }
 
-  // ===== Historial =====
   function loadHistory(){
     try{
       const raw = localStorage.getItem(HISTORY_KEY);
@@ -456,7 +444,6 @@
     const hist = loadHistory();
     hist.unshift(LAST);
 
-    // limitar a 50 cotizaciones
     const trimmed = hist.slice(0, 50);
     saveHistory(trimmed);
     renderHistory();
@@ -490,7 +477,6 @@
     document.getElementById("cutMin").value = I.cutMinInput;
     document.getElementById("cutSec").value = I.cutSecInput ?? 0;
 
-    document.getElementById("factor").value = I.factor;
     document.getElementById("usdKg").value = I.usdKg;
     document.getElementById("usdHr").value = I.usdHr;
     document.getElementById("setup").value = I.setup;
@@ -583,7 +569,6 @@
     document.getElementById("cutSec").value = 0;
     document.getElementById("gaugeSelect").value = "";
     document.getElementById("fracSelect").value = "";
-    document.getElementById("factor").value = 0.13;
     document.getElementById("usdKg").value = 1.7;
     document.getElementById("usdHr").value = 85;
     document.getElementById("setup").value = 0;
