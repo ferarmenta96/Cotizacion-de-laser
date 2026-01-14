@@ -2,15 +2,8 @@
 <html lang="es">
 <head>
   <meta charset="utf-8" />
-
-  <!-- 👇 INCISO C (AQUÍ VA, DENTRO DE <head>) -->
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <link rel="manifest" href="manifest.webmanifest">
-
   <title>Cotizador Corte Láser</title>
-
   <style>
     body { font-family: -apple-system, system-ui, Arial; margin: 16px; }
     h1 { font-size: 20px; margin: 0 0 12px; }
@@ -28,129 +21,562 @@
     .big { font-size: 22px; font-weight: 700; }
     .muted { opacity: .75; font-size: 13px; }
     .hr { height:1px; background:#eee; margin:10px 0; }
+    .ok { font-size: 13px; opacity:.75; margin-top:8px; }
     .twoBtns { display:flex; gap:10px; margin-top:10px; }
     .twoBtns button { flex:1; }
+    .historyRow { display:flex; gap:10px; align-items:flex-start; padding:10px; border:1px solid #eee; border-radius:12px; margin-top:10px; }
+    .historyMain { flex:1; }
+    .pill { display:inline-block; font-size:12px; padding:4px 8px; border-radius:999px; background:#f2f2f2; margin-right:6px; margin-top:6px; }
+    .smallBtns { display:flex; flex-direction:column; gap:8px; width:120px; }
+    .smallBtns button { padding:10px; font-size:14px; }
+    .printOnly { display:none; }
+
+    /* Modo impresión / PDF */
+    @media print {
+      body { margin: 0; }
+      .noPrint { display:none !important; }
+      .printOnly { display:block; }
+      .card { border: none; }
+      .historyRow { border: none; }
+    }
   </style>
 </head>
-
 <body>
 
-<h1>📐 Cotizador Corte Láser (Acero)</h1>
+  <h1 class="noPrint">📐 Cotizador Corte Láser (acero)</h1>
 
-<div class="card">
-  <div class="row">
-    <div>
-      <label>Largo (in)</label>
-      <input id="L" type="number" value="6" step="0.01">
+  <div class="card noPrint">
+    <div class="row">
+      <div>
+        <label>Largo (in)</label>
+        <input id="L" type="number" inputmode="decimal" value="6" step="0.01" />
+      </div>
+      <div>
+        <label>Ancho (in)</label>
+        <input id="W" type="number" inputmode="decimal" value="3" step="0.01" />
+      </div>
     </div>
-    <div>
-      <label>Ancho (in)</label>
-      <input id="W" type="number" value="3" step="0.01">
+
+    <div class="row">
+      <div>
+        <label>Espesor (in)</label>
+        <input id="T" type="number" inputmode="decimal" value="0.0625" step="0.0001" />
+      </div>
+      <div>
+        <label>Cantidad de piezas</label>
+        <input id="qty" type="number" inputmode="numeric" value="1" min="1" step="1" />
+      </div>
+    </div>
+
+    <div class="row">
+      <div>
+        <label>Modo de tiempo</label>
+        <select id="timeMode" onchange="calc()">
+          <option value="per_piece" selected>Tiempo por pieza</option>
+          <option value="total_job">Tiempo total del lote</option>
+        </select>
+      </div>
+      <div>
+        <label>Tiempo de corte (min)</label>
+        <input id="cutMin" type="number" inputmode="decimal" value="15" step="0.1" />
+      </div>
+    </div>
+
+    <div class="row">
+      <div>
+        <label>Calibre (acero) 6–20</label>
+        <select id="gaugeSelect" onchange="applyGauge()"></select>
+      </div>
+      <div>
+        <label>Espesor rápido (1&quot; → 1/16&quot;)</label>
+        <select id="fracSelect" onchange="applyFraction()"></select>
+      </div>
+    </div>
+
+    <div class="hr"></div>
+
+    <div class="row">
+      <div>
+        <label>Factor común (0.13)</label>
+        <input id="factor" type="number" inputmode="decimal" value="0.13" step="0.001" />
+      </div>
+      <div>
+        <label>USD/kg (1.7)</label>
+        <input id="usdKg" type="number" inputmode="decimal" value="1.7" step="0.01" />
+      </div>
+    </div>
+
+    <div class="row">
+      <div>
+        <label>USD/h láser (85)</label>
+        <input id="usdHr" type="number" inputmode="decimal" value="85" step="1" />
+      </div>
+      <div>
+        <label>Setup fijo (opcional, por lote)</label>
+        <input id="setup" type="number" inputmode="decimal" value="0" step="1" />
+      </div>
+    </div>
+
+    <div class="row">
+      <div>
+        <label>Merma material % (opcional)</label>
+        <input id="wastePct" type="number" inputmode="decimal" value="0" step="1" />
+      </div>
+      <div>
+        <label>Margen % (opcional)</label>
+        <input id="marginPct" type="number" inputmode="decimal" value="0" step="1" />
+      </div>
+    </div>
+
+    <label>Notas para el cliente (opcional)</label>
+    <textarea id="notes" placeholder="Ej: Incluye desbarbado / entrega / material proporcionado por cliente, etc."></textarea>
+
+    <div class="twoBtns">
+      <button class="primary" onclick="calc()">Calcular</button>
+      <button class="ghost" onclick="resetDefaults()">Reset</button>
     </div>
   </div>
 
-  <div class="row">
-    <div>
-      <label>Espesor (in)</label>
-      <input id="T" type="number" value="0.0625" step="0.0001">
+  <div class="card">
+    <div class="printOnly" style="margin-bottom:10px;">
+      <div style="font-size:18px;font-weight:700;">Cotización Corte Láser</div>
+      <div class="muted" id="printDate"></div>
+      <div class="hr"></div>
     </div>
-    <div>
-      <label>Cantidad de piezas</label>
-      <input id="qty" type="number" value="1" min="1">
+
+    <div class="out" id="out">Ingresa datos y presiona <b>Calcular</b>.</div>
+
+    <div class="twoBtns noPrint">
+      <button class="primary" onclick="copyWhatsApp()">📲 Copiar para WhatsApp</button>
+      <button class="ghost" onclick="shareWhatsApp()">💬 Abrir WhatsApp</button>
+    </div>
+
+    <div class="twoBtns noPrint">
+      <button class="primary" onclick="saveToHistory()">💾 Guardar en historial</button>
+      <button class="ghost" onclick="printPDF()">🧾 Guardar/Imprimir PDF</button>
+    </div>
+
+    <div class="ok noPrint" id="copyStatus"></div>
+
+    <div class="muted noPrint" style="margin-top:10px">
+      Setup es por lote. Merma afecta material. Margen aplica al total.
     </div>
   </div>
 
-  <div class="row">
-    <div>
-      <label>Tiempo de corte (min por pieza)</label>
-      <input id="cutMin" type="number" value="15" step="0.1">
+  <div class="card noPrint">
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
+      <div>
+        <div style="font-weight:700;">📚 Historial</div>
+        <div class="muted">Se guarda en tu celular (localStorage). Puedes cargar una cotización vieja y volver a editar.</div>
+      </div>
+      <button class="danger" style="max-width:180px;" onclick="clearHistory()">Borrar historial</button>
     </div>
-    <div>
-      <label>Setup fijo ($)</label>
-      <input id="setup" type="number" value="0">
-    </div>
+
+    <div id="history"></div>
   </div>
-
-  <div class="row">
-    <div>
-      <label>Factor (0.13)</label>
-      <input id="factor" type="number" value="0.13" step="0.001">
-    </div>
-    <div>
-      <label>USD / kg</label>
-      <input id="usdKg" type="number" value="1.7" step="0.01">
-    </div>
-  </div>
-
-  <div class="row">
-    <div>
-      <label>USD / hora láser</label>
-      <input id="usdHr" type="number" value="85">
-    </div>
-    <div>
-      <label>Margen %</label>
-      <input id="margin" type="number" value="0">
-    </div>
-  </div>
-
-  <button class="primary" onclick="calc()">Calcular</button>
-</div>
-
-<div class="card">
-  <div id="out" class="out">Ingresa datos y presiona Calcular</div>
-</div>
 
 <script>
-const IN_TO_CM = 2.54;
+  const IN_TO_CM = 2.54;
+  const HISTORY_KEY = "laser_quote_history_v1";
 
-function money(x){
-  return "$" + (Math.round(x*100)/100).toFixed(2);
-}
+  // Sheet Steel (Manufacturers’ Standard Gauge), inches: 6–20
+  const STEEL_GAUGE_IN = {
+    6: 0.1943, 7: 0.1793, 8: 0.1644, 9: 0.1495,
+    10: 0.1345, 11: 0.1196, 12: 0.1046, 13: 0.0897,
+    14: 0.0747, 15: 0.0673, 16: 0.0598, 17: 0.0538,
+    18: 0.0478, 19: 0.0418, 20: 0.0359
+  };
 
-function calc(){
-  const L = +L_input.value || 0;
-  const W = +W_input.value || 0;
-  const T = +T_input.value || 0;
-  const qty = +qty_input.value || 1;
-  const cutMin = +cutMin_input.value || 0;
-  const setup = +setup_input.value || 0;
-  const factor = +factor_input.value || 0;
-  const usdKg = +usdKg_input.value || 0;
-  const usdHr = +usdHr_input.value || 0;
-  const margin = (+margin_input.value || 0) / 100;
+  // Fracciones 1" a 1/16"
+  const FRACTIONS = [
+    { label: '1"', val: 1.0 },
+    { label: '3/4"', val: 0.75 },
+    { label: '1/2"', val: 0.5 },
+    { label: '3/8"', val: 0.375 },
+    { label: '1/4"', val: 0.25 },
+    { label: '3/16"', val: 0.1875 },
+    { label: '1/8"', val: 0.125 },
+    { label: '3/32"', val: 0.09375 },
+    { label: '1/16"', val: 0.0625 }
+  ];
 
-  const volume = (L*IN_TO_CM) * (W*IN_TO_CM) * (T*IN_TO_CM);
-  const weight = volume * factor;
-  const material = weight * usdKg * qty;
-  const laser = (cutMin * qty / 60) * usdHr;
+  function money(x){
+    if (!isFinite(x)) return "$0.00";
+    return "$" + (Math.round(x*100)/100).toFixed(2);
+  }
 
-  const base = material + laser + setup;
-  const total = base * (1 + margin);
-  const perPiece = total / qty;
+  function clampQty(q){
+    if (!isFinite(q) || q < 1) return 1;
+    return Math.floor(q);
+  }
 
-  out.innerHTML = `
-    <div class="big">Total: ${money(total)}</div>
-    <div class="muted">Precio por pieza: ${money(perPiece)}</div>
-    <div class="hr"></div>
-    <div>Material: ${money(material)}</div>
-    <div>Láser: ${money(laser)}</div>
-    <div>Setup: ${money(setup)}</div>
-  `;
-}
+  function nowStamp(){
+    const d = new Date();
+    return d.toISOString();
+  }
 
-/* enlaces rápidos */
-const L_input = document.getElementById("L");
-const W_input = document.getElementById("W");
-const T_input = document.getElementById("T");
-const qty_input = document.getElementById("qty");
-const cutMin_input = document.getElementById("cutMin");
-const setup_input = document.getElementById("setup");
-const factor_input = document.getElementById("factor");
-const usdKg_input = document.getElementById("usdKg");
-const usdHr_input = document.getElementById("usdHr");
-const margin_input = document.getElementById("margin");
+  function niceDate(iso){
+    try{
+      const d = new Date(iso);
+      return d.toLocaleString();
+    } catch { return iso; }
+  }
 
+  function initLists(){
+    const g = document.getElementById("gaugeSelect");
+    g.innerHTML = `<option value="">(elige calibre)</option>`;
+    Object.keys(STEEL_GAUGE_IN).map(Number).sort((a,b)=>a-b).forEach(ga=>{
+      const t = STEEL_GAUGE_IN[ga];
+      g.innerHTML += `<option value="${ga}">${ga} ga → ${t.toFixed(4)}"</option>`;
+    });
+
+    const f = document.getElementById("fracSelect");
+    f.innerHTML = `<option value="">(elige espesor)</option>`;
+    FRACTIONS.forEach(fr=>{
+      f.innerHTML += `<option value="${fr.val}">${fr.label} → ${fr.val}</option>`;
+    });
+  }
+
+  function applyGauge(){
+    const ga = parseInt(document.getElementById("gaugeSelect").value, 10);
+    if (!isNaN(ga) && STEEL_GAUGE_IN[ga]){
+      document.getElementById("T").value = STEEL_GAUGE_IN[ga];
+      document.getElementById("fracSelect").value = "";
+      calc();
+    }
+  }
+
+  function applyFraction(){
+    const v = parseFloat(document.getElementById("fracSelect").value);
+    if (!isNaN(v) && v > 0){
+      document.getElementById("T").value = v;
+      document.getElementById("gaugeSelect").value = "";
+      calc();
+    }
+  }
+
+  // Último cálculo
+  let LAST = null;
+
+  function calc(){
+    const L = parseFloat(document.getElementById("L").value || 0);
+    const W = parseFloat(document.getElementById("W").value || 0);
+    const T = parseFloat(document.getElementById("T").value || 0);
+
+    const qty = clampQty(parseFloat(document.getElementById("qty").value || 1));
+    document.getElementById("qty").value = qty;
+
+    const timeMode = document.getElementById("timeMode").value;
+    const cutMinInput = parseFloat(document.getElementById("cutMin").value || 0);
+
+    const factor = parseFloat(document.getElementById("factor").value || 0);
+    const usdKg = parseFloat(document.getElementById("usdKg").value || 0);
+    const usdHr = parseFloat(document.getElementById("usdHr").value || 0);
+
+    const setup = parseFloat(document.getElementById("setup").value || 0);
+    const wastePct = (parseFloat(document.getElementById("wastePct").value || 0) / 100.0);
+    const marginPct = (parseFloat(document.getElementById("marginPct").value || 0) / 100.0);
+
+    const notes = (document.getElementById("notes").value || "").trim();
+
+    // Dimensiones a cm
+    const Lcm = L * IN_TO_CM, Wcm = W * IN_TO_CM, Tcm = T * IN_TO_CM;
+
+    // Volumen por pieza (cm^3)
+    const volumeCm3_piece = Lcm * Wcm * Tcm;
+
+    // Peso por pieza (tu método)
+    const weightKg_piece = volumeCm3_piece * factor;
+
+    // Material por pieza
+    let material_piece = weightKg_piece * usdKg;
+    material_piece *= (1 + wastePct);
+
+    // Material total
+    const material_total = material_piece * qty;
+
+    // Tiempo total
+    const cutMin_total = (timeMode === "per_piece") ? (cutMinInput * qty) : cutMinInput;
+
+    // Láser total
+    const laser_total = (cutMin_total / 60.0) * usdHr;
+
+    // Setup por lote
+    const base_total = material_total + laser_total + setup;
+
+    // Total con margen
+    const total = base_total * (1 + marginPct);
+
+    // Precio por pieza (simple: total/qty)
+    const per_piece = total / qty;
+
+    LAST = {
+      ts: nowStamp(),
+      inputs: { L, W, T, qty, timeMode, cutMinInput, factor, usdKg, usdHr, setup, wastePct, marginPct, notes },
+      calc: { volumeCm3_piece, weightKg_piece, material_piece, material_total, cutMin_total, laser_total, base_total, total, per_piece }
+    };
+
+    // Pintar fecha para impresión
+    document.getElementById("printDate").textContent = "Fecha: " + new Date().toLocaleString();
+
+    // Render
+    const tm = (timeMode === "per_piece") ? `Tiempo por pieza: ${cutMinInput} min` : `Tiempo total del lote: ${cutMinInput} min`;
+
+    document.getElementById("out").innerHTML = `
+      <div class="big">Total: ${money(total)} <span class="muted">( ${money(per_piece)} c/u )</span></div>
+      <div class="hr"></div>
+
+      <div><b>Cantidad:</b> ${qty}</div>
+      <div><b>Dimensiones:</b> ${L}" × ${W}" × ${T}"</div>
+      <div><b>${tm}</b></div>
+      <div><b>Tiempo total:</b> ${cutMin_total.toFixed(2)} min</div>
+
+      <div class="hr"></div>
+
+      <div><b>Volumen (por pieza):</b> ${volumeCm3_piece.toFixed(2)} cm³</div>
+      <div><b>Peso (por pieza, factor ${factor}):</b> ${weightKg_piece.toFixed(3)} kg</div>
+
+      <div class="hr"></div>
+
+      <div><b>Material:</b> ${money(material_total)} <span class="muted">( ${money(material_piece)} c/u )</span></div>
+      <div><b>Láser:</b> ${money(laser_total)} <span class="muted">(${cutMin_total.toFixed(2)} min total × ${money(usdHr)}/h)</span></div>
+      <div><b>Setup (lote):</b> ${money(setup)}</div>
+
+      <div class="hr"></div>
+
+      <div><b>Costo base:</b> ${money(base_total)}</div>
+      <div><b>Merma:</b> ${(wastePct*100).toFixed(0)}%</div>
+      <div><b>Margen:</b> ${(marginPct*100).toFixed(0)}%</div>
+
+      ${notes ? `<div class="hr"></div><div><b>Notas:</b> ${escapeHtml(notes)}</div>` : ""}
+    `;
+
+    document.getElementById("copyStatus").textContent = "";
+  }
+
+  function escapeHtml(s){
+    return s.replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;")
+            .replaceAll('"',"&quot;").replaceAll("'","&#039;");
+  }
+
+  function whatsappText(){
+    if (!LAST) return "Cotización (sin datos).";
+    const I = LAST.inputs, C = LAST.calc;
+
+    const tm = (I.timeMode === "per_piece")
+      ? `Tiempo por pieza: ${I.cutMinInput} min`
+      : `Tiempo total del lote: ${I.cutMinInput} min`;
+
+    return [
+      "📌 *Cotización Corte Láser (Acero)*",
+      `• Piezas: ${I.qty}`,
+      `• Medidas: ${I.L}" × ${I.W}" × ${I.T}"`,
+      `• ${tm}`,
+      `• Tiempo total: ${C.cutMin_total.toFixed(2)} min`,
+      "",
+      `💵 *Total:* ${money(C.total)}`,
+      `💵 *Precio c/u:* ${money(C.per_piece)}`,
+      "",
+      "Detalle:",
+      `• Material: ${money(C.material_total)} (${money(C.material_piece)} c/u)`,
+      `• Láser: ${money(C.laser_total)} (${C.cutMin_total.toFixed(2)} min total a ${money(I.usdHr)}/h)`,
+      `• Setup: ${money(I.setup)}`,
+      "",
+      `Factor: ${I.factor} | USD/kg: ${I.usdKg} | Merma: ${(I.wastePct*100).toFixed(0)}% | Margen: ${(I.marginPct*100).toFixed(0)}%`,
+      I.notes ? `Notas: ${I.notes}` : ""
+    ].filter(Boolean).join("\n");
+  }
+
+  async function copyWhatsApp(){
+    calc();
+    const text = whatsappText();
+    try{
+      await navigator.clipboard.writeText(text);
+      document.getElementById("copyStatus").textContent = "✅ Copiado. Pégalo en WhatsApp.";
+    } catch(e){
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+      document.getElementById("copyStatus").textContent = "✅ Copiado (modo compatibilidad).";
+    }
+  }
+
+  function shareWhatsApp(){
+    calc();
+    const text = encodeURIComponent(whatsappText());
+    window.open(`https://wa.me/?text=${text}`, "_blank");
+  }
+
+  function printPDF(){
+    calc();
+    // El usuario en iPhone/Android elige "Guardar como PDF" o "Print"
+    window.print();
+  }
+
+  // ===== Historial =====
+  function loadHistory(){
+    try{
+      const raw = localStorage.getItem(HISTORY_KEY);
+      const arr = raw ? JSON.parse(raw) : [];
+      return Array.isArray(arr) ? arr : [];
+    } catch { return []; }
+  }
+
+  function saveHistory(arr){
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(arr));
+  }
+
+  function saveToHistory(){
+    calc();
+    if (!LAST) return;
+
+    const hist = loadHistory();
+    hist.unshift(LAST);
+
+    // limitar a 50 cotizaciones
+    const trimmed = hist.slice(0, 50);
+    saveHistory(trimmed);
+    renderHistory();
+    document.getElementById("copyStatus").textContent = "✅ Guardado en historial.";
+  }
+
+  function clearHistory(){
+    if (!confirm("¿Seguro que quieres borrar TODO el historial?")) return;
+    localStorage.removeItem(HISTORY_KEY);
+    renderHistory();
+  }
+
+  function deleteHistoryItem(ts){
+    const hist = loadHistory().filter(x => x?.ts !== ts);
+    saveHistory(hist);
+    renderHistory();
+  }
+
+  function loadFromHistory(ts){
+    const hist = loadHistory();
+    const item = hist.find(x => x?.ts === ts);
+    if (!item) return;
+
+    const I = item.inputs;
+    document.getElementById("L").value = I.L;
+    document.getElementById("W").value = I.W;
+    document.getElementById("T").value = I.T;
+    document.getElementById("qty").value = I.qty;
+    document.getElementById("timeMode").value = I.timeMode;
+    document.getElementById("cutMin").value = I.cutMinInput;
+
+    document.getElementById("factor").value = I.factor;
+    document.getElementById("usdKg").value = I.usdKg;
+    document.getElementById("usdHr").value = I.usdHr;
+    document.getElementById("setup").value = I.setup;
+    document.getElementById("wastePct").value = (I.wastePct * 100).toFixed(0);
+    document.getElementById("marginPct").value = (I.marginPct * 100).toFixed(0);
+    document.getElementById("notes").value = I.notes || "";
+
+    // limpia selectores (porque puede no coincidir)
+    document.getElementById("gaugeSelect").value = "";
+    document.getElementById("fracSelect").value = "";
+
+    calc();
+    document.getElementById("copyStatus").textContent = "✅ Cargado desde historial.";
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function renderHistory(){
+    const box = document.getElementById("history");
+    const hist = loadHistory();
+
+    if (hist.length === 0){
+      box.innerHTML = `<div class="muted" style="margin-top:10px;">No hay cotizaciones guardadas todavía.</div>`;
+      return;
+    }
+
+    box.innerHTML = hist.map(item => {
+      const I = item.inputs, C = item.calc;
+      const title = `${I.qty} pzs | ${I.L}×${I.W}×${I.T} in`;
+      const sub = (I.timeMode === "per_piece")
+        ? `${I.cutMinInput} min/pza → ${C.cutMin_total.toFixed(1)} min total`
+        : `${I.cutMinInput} min total`;
+
+      return `
+        <div class="historyRow">
+          <div class="historyMain">
+            <div style="font-weight:700;">${escapeHtml(title)}</div>
+            <div class="muted">${escapeHtml(sub)} • ${escapeHtml(niceDate(item.ts))}</div>
+
+            <div style="margin-top:6px;">
+              <span class="pill">Total: ${money(C.total)}</span>
+              <span class="pill">c/u: ${money(C.per_piece)}</span>
+              <span class="pill">Láser: ${money(C.laser_total)}</span>
+              <span class="pill">Material: ${money(C.material_total)}</span>
+            </div>
+
+            ${I.notes ? `<div class="muted" style="margin-top:8px;">Notas: ${escapeHtml(I.notes)}</div>` : ""}
+          </div>
+
+          <div class="smallBtns">
+            <button class="primary" onclick="loadFromHistory('${item.ts}')">Cargar</button>
+            <button class="ghost" onclick="copyFromHistory('${item.ts}')">Copiar</button>
+            <button class="danger" onclick="deleteHistoryItem('${item.ts}')">Borrar</button>
+          </div>
+        </div>
+      `;
+    }).join("");
+  }
+
+  async function copyFromHistory(ts){
+    const hist = loadHistory();
+    const item = hist.find(x => x?.ts === ts);
+    if (!item) return;
+
+    // Temporariamente setear LAST para reutilizar whatsappText()
+    const prev = LAST;
+    LAST = item;
+
+    const text = whatsappText();
+    try{
+      await navigator.clipboard.writeText(text);
+      document.getElementById("copyStatus").textContent = "✅ Copiado desde historial.";
+    } catch(e){
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+      document.getElementById("copyStatus").textContent = "✅ Copiado (modo compatibilidad).";
+    } finally {
+      LAST = prev;
+    }
+  }
+
+  function resetDefaults(){
+    document.getElementById("L").value = 6;
+    document.getElementById("W").value = 3;
+    document.getElementById("T").value = 0.0625;
+    document.getElementById("qty").value = 1;
+    document.getElementById("timeMode").value = "per_piece";
+    document.getElementById("cutMin").value = 15;
+    document.getElementById("gaugeSelect").value = "";
+    document.getElementById("fracSelect").value = "";
+    document.getElementById("factor").value = 0.13;
+    document.getElementById("usdKg").value = 1.7;
+    document.getElementById("usdHr").value = 85;
+    document.getElementById("setup").value = 0;
+    document.getElementById("wastePct").value = 0;
+    document.getElementById("marginPct").value = 0;
+    document.getElementById("notes").value = "";
+    calc();
+  }
+
+  window.addEventListener("load", () => {
+    initLists();
+    calc();
+    renderHistory();
+  });
 </script>
-
 </body>
 </html>
